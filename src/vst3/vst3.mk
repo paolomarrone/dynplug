@@ -1,16 +1,15 @@
 default: all
 
-COMMON_DIR := ${ROOT_DIR}/../../common/vst3
-VST3_SDK_DIR := ${ROOT_DIR}/../../../../VST_SDK/vst3sdk
-TEMPLATE_DIR := ${ROOT_DIR}/../../common/vst3/template.vst3
+COMMON_DIR := ${ROOT_DIR}
+VST3_SDK_DIR := ${ROOT_DIR}/../../../VST_SDK/vst3sdk
+TEMPLATE_DIR := ${ROOT_DIR}/template.vst3
 BUILD_PLUGIN_DIR := build/${NAME}.vst3
 
 CXXFLAGS := \
 	-DRELEASE=1 \
 	-I${ROOT_DIR} \
-	-I${ROOT_DIR}/../src \
+	-I${ROOT_DIR}/../common \
 	-I${COMMON_DIR} \
-	-I${ROOT_DIR}/../../../include \
 	-I${VST3_SDK_DIR} \
 	-O3 \
 	-Wall \
