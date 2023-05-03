@@ -3,9 +3,21 @@
 
 void dynplug_init(dynplug *instance) {
 	
+	// dlopen ecc
+	// dlsym and fill instance
+
+	//dynplug_fini(instance);
 	//bw_osc_saw_init(&instance->vco_saw_coeffs);
 	
 }
+
+void dynplug_fini(dynplug *instance) {
+	if (!instance)
+		return;
+	// TODO: fini...
+	free(instance);
+}
+
 
 void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
 	
@@ -52,4 +64,12 @@ void dynplug_pitch_bend(dynplug *instance, int value) {
 void dynplug_mod_wheel(dynplug *instance, char value) {
 	//TODO: call module wheel checking if exists
 	
+}
+
+size_t dynplug_mem_req(dynplug *instance) {
+
+}
+
+void dynplug_mem_set(dynplug *instance, void* mem) {
+
 }

@@ -63,14 +63,17 @@ static struct config_parameter config_parameters[NUM_PARAMETERS] = {
 
 #define P_TYPE				dynplug
 #define P_INIT				dynplug_init
-#define P_SET_SAMPLE_RATE		dynplug_set_sample_rate
+#define P_FINI 				dynplug_fini
+#define P_SET_SAMPLE_RATE	dynplug_set_sample_rate
 #define P_RESET				dynplug_reset
 #define P_PROCESS			dynplug_process
-#define P_SET_PARAMETER			dynplug_set_parameter
-#define P_GET_PARAMETER			dynplug_get_parameter
+#define P_SET_PARAMETER		dynplug_set_parameter
+#define P_GET_PARAMETER		dynplug_get_parameter
 #define P_NOTE_ON			dynplug_note_on
 #define P_NOTE_OFF			dynplug_note_off
-#define P_PITCH_BEND			dynplug_pitch_bend
+#define P_PITCH_BEND		dynplug_pitch_bend
 #define P_MOD_WHEEL			dynplug_mod_wheel
+#define P_MEM_REQ			dynplug_mem_req
+#define P_MEM_SET 			dynplug_mem_set
 
 #endif
