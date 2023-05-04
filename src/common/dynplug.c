@@ -1,75 +1,158 @@
 #include "dynplug.h"
 
+#include <stdio.h>
+#include <dlfcn.h>
+
+// Default empty functions
+
+static void default_module_init() {}
+static void default_module_fini() {}
+static void default_module_set_sample_rate(float sample_rate) { (void)sample_rate; }
+static void default_module_reset() {}
+static void default_module_process(const float** x, float** y, int n_samples) { (void)x; (void)y; (void)n_samples; }
+static void default_module_set_parameter(int index, float value) { (void)index; (void)value; }
+static float default_module_get_parameter(int index) { (void) index; return 0.f; }
+static void default_module_note_on(char note, char velocity) { (void)note; (void)velocity; }
+static void default_module_note_off(char note) { (void)note; }
+static void default_module_pitch_bend(int bend) { (void)bend; }
+static void default_module_mod_wheel(char wheel) { (void)wheel; }
+static void load_default_module (dynplug* instance) {
+	instance->module_init = default_module_init;
+	instance->module_fini = default_module_fini;
+	instance->module_set_sample_rate = default_module_set_sample_rate;
+	instance->module_reset = default_module_reset;
+	instance->module_process = default_module_process;
+	instance->module_set_parameter = default_module_set_parameter;
+	instance->module_get_parameter = default_module_get_parameter;
+	instance->module_note_on = default_module_note_on;
+	instance->module_note_off = default_module_note_off;
+	instance->module_pitch_bend = default_module_pitch_bend;
+	instance->module_mod_wheel = default_module_mod_wheel;
+	instance->module_parameters_n = 0;
+	instance->module_buses_in_n = 0;
+	instance->module_buses_out_n = 0;
+	instance->module_channels_in_n = 0;
+	instance->module_channels_out_n = 0;
+	//instance->module_data = nullptr;
+}
+
+static int load_yaaaeapa_module (dynplug* instance, const char* path) {
+	instance->module_handle = dlmopen(LM_ID_NEWLM, path, RTLD_NOW);
+
+    if (!instance->module_handle) {
+        fprintf(stderr, "dlmopen error: %s\n", dlerror());
+        return 1;
+    }
+    
+    int sym_n = 16;
+    const char* sym_names[sym_n] = {
+		"yaaaeapa_init",
+		"yaaaeapa_fini",
+		"yaaaeapa_set_sample_rate",
+		"yaaaeapa_reset",
+		"yaaaeapa_process",
+		"yaaaeapa_set_parameter",
+		"yaaaeapa_get_parameter",
+		"yaaaeapa_note_on",
+		"yaaaeapa_note_off",
+		"yaaaeapa_pitch_bend",
+		"yaaaeapa_mod_wheel",
+    	"yaaaeapa_parameters_n",
+		"yaaaeapa_buses_in_n",
+		"yaaaeapa_buses_out_n",
+		"yaaaeapa_channels_in_n",
+		"yaaaeapa_channels_out_n",
+		//"yaaaeapa_data"
+    };
+
+   	void* syms[sym_n];
+
+	for (int i = 0; i < sym_n; i++) {
+		syms[i] = dlsym(instance->module_handle, sym_names[i]);
+		if (!syms[i]) {
+			fprintf(stderr, "dlsym error reading '%s': %s\n", sym_names[i], dlerror());
+        	return 1;
+		}
+	}
+
+	instance->module_init 				= (void (*)()) (syms[0]);
+	instance->module_fini 				= (void (*)()) (syms[1]);
+	instance->module_set_sample_rate 	= (void (*)(float)) (syms[2]);
+	instance->module_reset 				= (void (*)()) (syms[3]);
+	instance->module_process			= (void (*)(const float**, float**, int)) (syms[4]);
+	instance->module_set_parameter		= (void (*)(int, float)) (syms[5]);
+	instance->module_get_parameter		= (float (*)(int)) (syms[6]);
+	instance->module_note_on			= (void (*)(char, char)) (syms[7]);
+	instance->module_note_off			= (void (*)(char)) (syms[8]);
+	instance->module_pitch_bend			= (void (*)(int)) (syms[9]);
+	instance->module_mod_wheel			= (void (*)(char)) (syms[10]);
+    instance->module_parameters_n 		= *((int*) (syms[11]));
+	instance->module_buses_in_n 		= *((int*) (syms[12]));
+	instance->module_buses_out_n 		= *((int*) (syms[13]));
+	instance->module_channels_in_n 		= *((int*) (syms[14]));
+	instance->module_channels_out_n		= *((int*) (syms[15]));
+	//instance->module_data 			= syms[16]; // Double pointer, for late indirection. Typically this is not ready before init
+
+	return 0;
+}
+
+static void unload_module(dynplug* instance) {
+	instance->module_fini();
+	if (!dlclose(instance->module_handle)) {
+		fprintf(stderr, "dlclose error: %s\n", dlerror());
+	}
+	instance->module_handle = NULL;
+}
 
 void dynplug_init(dynplug *instance) {
 	
-	// dlopen ecc
-	// dlsym and fill instance
+	// One day, here's the place to just init to default and to launch the server
 
-	//dynplug_fini(instance);
-	//bw_osc_saw_init(&instance->vco_saw_coeffs);
-	
+	load_default_module(instance);
+
+	// Test for now
+	// TODO: check errors
+	load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
+	instance->module_init();
 }
 
 void dynplug_fini(dynplug *instance) {
-	if (!instance)
-		return;
-	// TODO: fini...
-	free(instance);
+	unload_module(instance);
+	// TODO: stop the server
 }
 
-
 void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
-	
-	//bw_phase_gen_set_sample_rate(&instance->vco1_phase_gen_coeffs, sample_rate);
+	instance->module_set_sample_rate(sample_rate);
 }
 
 void dynplug_reset(dynplug *instance) {
-	
-	//bw_phase_gen_reset_coeffs(&instance->vco1_phase_gen_coeffs);
+	instance->module_reset();
 }
 
 void dynplug_process(dynplug *instance, const float** x, float** y, int n_samples) {
-	
-	//(void)x;
-	
-	//TODO call module process
+	instance->module_process(x, y, n_samples);
 }
 
 void dynplug_set_parameter(dynplug *instance, int index, float value) {
-
-	//TODO: call module set_parameter
-
+	instance->module_set_parameter(index, value);
 }
 
 float dynplug_get_parameter(dynplug *instance, int index) {
-	// TODO: return module get_parameter
+	return instance->module_get_parameter(index);
 }
 
 void dynplug_note_on(dynplug *instance, char note, char velocity) {
-	//TODO: call module note_on checking if exists
-	
+	instance->module_note_on(note, velocity);	
 }
 
 void dynplug_note_off(dynplug *instance, char note) {
-	//TODO: call module note_off checking if exists
-	
+	instance->module_note_off(note);	
 }
 
 void dynplug_pitch_bend(dynplug *instance, int value) {
-	//TODO: call module bend checking if exists
-	
+	instance->module_pitch_bend(value);	
 }
 
 void dynplug_mod_wheel(dynplug *instance, char value) {
-	//TODO: call module wheel checking if exists
-	
-}
-
-size_t dynplug_mem_req(dynplug *instance) {
-
-}
-
-void dynplug_mem_set(dynplug *instance, void* mem) {
-
+	instance->module_mod_wheel(value);
 }

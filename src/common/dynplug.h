@@ -7,6 +7,7 @@ extern "C" {
 
 // We only support yaaaeapa for now. Maybe LADSPA in future?
 
+// Fix
 enum {
 	p_1,
 	p_2,
@@ -19,7 +20,7 @@ enum {
 #define BUFFER_SIZE 	32
 
 struct _dynplug {
-	void*	module_handle; // dlopen result
+	void*	module_handle; // dl(m)open result
 
 	void  	(*module_init)();
 	void  	(*module_fini)();
@@ -37,7 +38,7 @@ struct _dynplug {
 	int  	module_buses_out_n;
 	int  	module_channels_in_n;
 	int  	module_channels_out_n;
-	void* 	module_data;
+	//void* 	module_data;
 };
 typedef struct _dynplug dynplug;
 
@@ -52,8 +53,6 @@ void dynplug_note_on(dynplug *instance, char note, char velocity);
 void dynplug_note_off(dynplug *instance, char note);
 void dynplug_pitch_bend(dynplug *instance, int value);
 void dynplug_mod_wheel(dynplug *instance, char value);
-size_t dynplug_mem_req(dynplug *instance);
-void dynplug_mem_set(dynplug *instance, void* mem);
 
 #ifdef __cplusplus
 }

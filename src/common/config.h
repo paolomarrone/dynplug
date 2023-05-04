@@ -73,7 +73,7 @@ static struct config_parameter config_parameters[NUM_PARAMETERS] = {
 #define P_NOTE_OFF			dynplug_note_off
 #define P_PITCH_BEND		dynplug_pitch_bend
 #define P_MOD_WHEEL			dynplug_mod_wheel
-#define P_MEM_REQ			dynplug_mem_req
-#define P_MEM_SET 			dynplug_mem_set
+//#define P_MEM_REQ			dynplug_mem_req
+//#define P_MEM_SET 			dynplug_mem_set
 
 #endif
