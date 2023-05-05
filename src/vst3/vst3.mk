@@ -15,6 +15,7 @@ CXXFLAGS := \
 	-Wall \
 	-Wextra \
 	-Wpedantic \
+	-Wreturn-type \
 	-std=c++20
 LDFLAGS := \
 	-shared

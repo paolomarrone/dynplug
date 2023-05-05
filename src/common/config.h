@@ -39,7 +39,7 @@ struct config_parameter {
 #define NUM_CHANNELS_OUT	1	// ^
 
 static struct config_io_bus config_buses_in[NUM_BUSES_IN] = {
-	{ "Audio in", 0, 0, 0, IO_STEREO }
+	{ "Audio in", 0, 0, 0, IO_MONO }
 };
 
 static struct config_io_bus config_buses_out[NUM_BUSES_OUT] = {

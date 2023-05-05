@@ -22,10 +22,10 @@ enum {
 struct _dynplug {
 	void*	module_handle; // dl(m)open result
 
-	void  	(*module_init)();
-	void  	(*module_fini)();
+	void  	(*module_init)(void);
+	void  	(*module_fini)(void);
 	void 	(*module_set_sample_rate)(float sample_rate);
-	void 	(*module_reset)();
+	void 	(*module_reset)(void);
 	void 	(*module_process)(const float** x, float** y, int n_samples);
 	void 	(*module_set_parameter)(int index, float value);
 	float 	(*module_get_parameter)(int index);
@@ -38,7 +38,7 @@ struct _dynplug {
 	int  	module_buses_out_n;
 	int  	module_channels_in_n;
 	int  	module_channels_out_n;
-	//void* 	module_data;
+	void 	(*module_get_parameter_info)(int index, char** name, char** shortName, char* out, char* bypass, int* steps, float* defaultValueUnmapped);
 };
 typedef struct _dynplug dynplug;
 
@@ -53,6 +53,9 @@ void dynplug_note_on(dynplug *instance, char note, char velocity);
 void dynplug_note_off(dynplug *instance, char note);
 void dynplug_pitch_bend(dynplug *instance, int value);
 void dynplug_mod_wheel(dynplug *instance, char value);
+
+// TODO: Implementation specific for vst3/LADSPA/ecc..
+//void dynplug_set_parameters()
 
 #ifdef __cplusplus
 }
