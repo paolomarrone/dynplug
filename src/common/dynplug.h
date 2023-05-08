@@ -20,6 +20,7 @@ enum {
 #define BUFFER_SIZE 	32
 
 struct _dynplug {
+	//void*   data; // For example, this contains VST3's controller pointer
 	void*	module_handle; // dl(m)open result
 
 	void  	(*module_init)(void);
@@ -54,8 +55,15 @@ void dynplug_note_off(dynplug *instance, char note);
 void dynplug_pitch_bend(dynplug *instance, int value);
 void dynplug_mod_wheel(dynplug *instance, char value);
 
-// TODO: Implementation specific for vst3/LADSPA/ecc..
-//void dynplug_set_parameters()
+
+//void dynplug_set_data(dynplug *instance, void* data);
+//void* dynplug_get_data(dynplug *instance);
+
+/*
+	Informs the DAW about the new parameters
+	Implementation specific for vst3/LADSPA/ecc..
+*/
+void dynplug_set_parameters_info(dynplug *instance);
 
 #ifdef __cplusplus
 }

@@ -25,6 +25,26 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "common.h"
 
+#include <stdio.h> // tmp
+
+#include "dynplug.h"
+
+void dynplug_set_parameters_info(dynplug *instance) {
+	//parameters.removeAll()
+}
+
+bool Controller::sendMessageToProcessor(const char* tag, const void* data, int size) {
+	auto message = allocateMessage();
+	if (!message)
+		return false;
+	FReleaser msgReleaser(message);
+	message->setMessageID("BinaryMessage");
+
+	message->getAttributes()->setBinary(tag, &data, size);
+	sendMessage(message);
+	return true;
+}
+
 tresult PLUGIN_API Controller::initialize(FUnknown *context) {
 	tresult r = EditController::initialize(context);
 	if (r != kResultTrue)
@@ -74,6 +94,13 @@ tresult PLUGIN_API Controller::initialize(FUnknown *context) {
 }
 
 tresult PLUGIN_API Controller::setComponentState(IBStream *state) {
+	/*
+	Maybe we should find a better place for this, 
+	but while instantiating messages don't arrive...
+	probably the system isn't fully ready... thank you vst3
+	*/
+	sendMessageToProcessor("procAddr", (const void*) this, sizeof(void*));
+
 	if (!state)
 		return kResultFalse;
 

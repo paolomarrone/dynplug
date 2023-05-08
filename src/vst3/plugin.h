@@ -37,6 +37,8 @@ public:
 		return (IAudioProcessor *) new Plugin();
 	}
 
+	tresult PLUGIN_API notify (IMessage* message) SMTG_OVERRIDE;
+
 	tresult PLUGIN_API initialize(FUnknown *context) SMTG_OVERRIDE;
 	tresult PLUGIN_API terminate() SMTG_OVERRIDE;
 	tresult PLUGIN_API setActive(TBool state) SMTG_OVERRIDE;

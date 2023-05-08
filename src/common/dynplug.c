@@ -105,19 +105,18 @@ static int load_yaaaeapa_module (dynplug* instance, const char* path) {
 	instance->module_channels_out_n		= *((int*) (syms[15]));
 	instance->module_get_parameter_info = (void (*)(int, char**, char**, char*, char*, int*, float*)) (syms[16]);
 
+/*
 	for (int i = 0; i < instance->module_parameters_n; i++) {
 		//char *name, *shortName, out, bypass;
 		//int steps;
 		//float defaultValueUnmapped;
-
 		//instance->module_get_parameter_info(i, &name, &shortName, &out, &bypass, &steps, &defaultValueUnmapped);
-		
-
-
 	}
+*/
 
 	return 0;
 }
+
 
 static void unload_module(dynplug* instance) {
 	(*(instance->module_fini))();
@@ -130,12 +129,14 @@ static void unload_module(dynplug* instance) {
 void dynplug_init(dynplug *instance) {
 	
 	// One day, here's the place to just init to default and to launch the server
+	// All the following will be made in server's thread
 
 	load_default_module(instance);
 
 	// Test for now
 	// TODO: check errors
 	load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
+	dynplug_set_parameters_info(instance);
 	(*(instance->module_init))();
 	
 }
@@ -180,3 +181,4 @@ void dynplug_pitch_bend(dynplug *instance, int value) {
 void dynplug_mod_wheel(dynplug *instance, char value) {
 	(*(instance->module_mod_wheel))(value);
 }
+

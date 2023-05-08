@@ -147,9 +147,25 @@ static inline void _sse2neon_mm_set_flush_zero_mode(unsigned int flag)
 #define NO_DAZ_FTZ
 
 #endif
-
+#include <stdio.h>
 Plugin::Plugin() {
 	setControllerClass(FUID(CTRL_GUID_1, CTRL_GUID_2, CTRL_GUID_3, CTRL_GUID_4));
+}
+
+tresult PLUGIN_API Plugin::notify(IMessage* message) {
+	if(!message)
+		return kInvalidArgument;
+
+	if(!strcmp( message->getMessageID(), "BinaryMessage")) {
+		const void* data;
+		uint32 size;
+		if( message->getAttributes()->getBinary( "procAddr", data, size ) == kResultOk ) {
+			printf("procAddr= %p\n", *((void**)data));
+			// TODO: ...
+			return kResultOk;
+		}
+	}
+	return AudioEffect::notify( message );
 }
 
 tresult PLUGIN_API Plugin::initialize(FUnknown *context) {

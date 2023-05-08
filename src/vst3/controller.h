@@ -25,6 +25,7 @@
 #include "config_vst3.h"
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "public.sdk/source/vst/vstaudioeffect.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -52,7 +53,7 @@ public:
 #endif
 
 private:
-
+    bool sendMessageToProcessor(const char* tag, const void* data, int size);
 };
 
 #endif
