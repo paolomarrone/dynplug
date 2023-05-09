@@ -27,6 +27,8 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
+#include "dynplug.h"
+
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 
@@ -39,6 +41,12 @@ public:
 	static FUnknown *createInstance(void *context) {
 		return (IEditController *) new Controller();
 	}
+
+    bool sendMessageToProcessor(const char* tag, const void* data, int size);
+    tresult PLUGIN_API notify (IMessage* message) SMTG_OVERRIDE;
+
+    void set_parameters_info(dynplug* instance);
+
 
 	tresult PLUGIN_API initialize(FUnknown *context) SMTG_OVERRIDE;
 	tresult PLUGIN_API setComponentState(IBStream *state) SMTG_OVERRIDE;
@@ -53,7 +61,7 @@ public:
 #endif
 
 private:
-    bool sendMessageToProcessor(const char* tag, const void* data, int size);
+
 };
 
 #endif

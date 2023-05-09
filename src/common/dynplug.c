@@ -23,8 +23,8 @@ static void default_module_note_on(char note, char velocity) { (void)note; (void
 static void default_module_note_off(char note) { (void)note; }
 static void default_module_pitch_bend(int bend) { (void)bend; }
 static void default_module_mod_wheel(char wheel) { (void)wheel; }
-static void default_module_get_parameter_info (int index, char** name, char** shortName, char* out, char* bypass, int* steps, float* defaultValueUnmapped) {
-	(void) index; (void) name; (void) shortName; (void) out; (void) bypass; (void) steps; (void) defaultValueUnmapped;
+static void default_module_get_parameter_info (int index, char** name, char** shortName, char** units, char* out, char* bypass, int* steps, float* defaultValueUnmapped) {
+	(void) index; (void) name; (void) shortName; (void) units; (void) out; (void) bypass; (void) steps; (void) defaultValueUnmapped;
 }
 static void load_default_module (dynplug* instance) {
 	instance->module_init = &default_module_init;
@@ -103,16 +103,7 @@ static int load_yaaaeapa_module (dynplug* instance, const char* path) {
 	instance->module_buses_out_n 		= *((int*) (syms[13]));
 	instance->module_channels_in_n 		= *((int*) (syms[14]));
 	instance->module_channels_out_n		= *((int*) (syms[15]));
-	instance->module_get_parameter_info = (void (*)(int, char**, char**, char*, char*, int*, float*)) (syms[16]);
-
-/*
-	for (int i = 0; i < instance->module_parameters_n; i++) {
-		//char *name, *shortName, out, bypass;
-		//int steps;
-		//float defaultValueUnmapped;
-		//instance->module_get_parameter_info(i, &name, &shortName, &out, &bypass, &steps, &defaultValueUnmapped);
-	}
-*/
+	instance->module_get_parameter_info = (void (*)(int, char**, char**, char**, char*, char*, int*, float*)) (syms[16]);
 
 	return 0;
 }
@@ -136,7 +127,9 @@ void dynplug_init(dynplug *instance) {
 	// Test for now
 	// TODO: check errors
 	load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
-	dynplug_set_parameters_info(instance);
+	printf("dyn init A\n"); fflush(stdout);
+	//dynplug_set_parameters_info(instance);
+	printf("dyn init B\n"); fflush(stdout);
 	(*(instance->module_init))();
 	
 }
@@ -146,8 +139,16 @@ void dynplug_fini(dynplug *instance) {
 	// TODO: stop the server
 }
 
+static int aaaaa = 0;
+
 void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
 	(*(instance->module_set_sample_rate))(sample_rate);
+	printf("dynplug_set_sample_rate A\n");
+
+	if (aaaaa == 0) {
+		aaaaa = 1;
+		dynplug_set_parameters_info(instance); // Tmp here
+	}
 }
 
 void dynplug_reset(dynplug *instance) {

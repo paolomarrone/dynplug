@@ -27,12 +27,8 @@
 
 #include <stdio.h> // tmp
 
-#include "dynplug.h"
 
-void dynplug_set_parameters_info(dynplug *instance) {
-	//parameters.removeAll()
-}
-
+// TODO: fix
 bool Controller::sendMessageToProcessor(const char* tag, const void* data, int size) {
 	auto message = allocateMessage();
 	if (!message)
@@ -40,9 +36,64 @@ bool Controller::sendMessageToProcessor(const char* tag, const void* data, int s
 	FReleaser msgReleaser(message);
 	message->setMessageID("BinaryMessage");
 
-	message->getAttributes()->setBinary(tag, &data, size);
+	message->getAttributes()->setBinary(tag, &data, size); // Fix this hack
 	sendMessage(message);
 	return true;
+}
+
+tresult PLUGIN_API Controller::notify(IMessage* message) {
+	printf("controller notify \n");
+	if(!message)
+		return kInvalidArgument;
+
+	if(!strcmp( message->getMessageID(), "BinaryMessage")) {
+		const void* data;
+		uint32 size;
+		if( message->getAttributes()->getBinary( "hi", data, size ) == kResultOk ) {
+			printf("hi= %p\n", (dynplug*) (*((void**) data)));
+			dynplug *inst = (dynplug*) (*((void**) data));
+			this->set_parameters_info(inst);
+			return kResultOk;
+		}
+	}
+	return EditController::notify( message );
+}
+
+// To be called from UI thread
+void Controller::set_parameters_info(dynplug* instance) {
+	printf("Controller set_parameters_info A \n"); fflush(stdout);
+	int n = instance->module_parameters_n;
+printf("Controller set_parameters_info B %d \n", n); fflush(stdout);
+	
+	parameters.removeAll();
+
+printf("Controller set_parameters_info C \n"); fflush(stdout);
+	
+	for (int p = 0; p < n; p++) {
+		printf("Controller set_parameters_info D %d \n", p); fflush(stdout);
+	
+		char *name, *shortName, *units, out, bypass;
+		int steps;
+		float defaultValueUnmapped;
+		instance->module_get_parameter_info(p, &name, &shortName, &units, &out, &bypass, &steps, &defaultValueUnmapped);
+
+		parameters.addParameter(
+			ConstStringTable::instance()->getString(name),
+			units ? ConstStringTable::instance()->getString(units) : nullptr,
+			steps,
+			defaultValueUnmapped,
+			(out ? ParameterInfo::kIsReadOnly | ParameterInfo::kIsHidden : ParameterInfo::kCanAutomate)
+			| (bypass ? ParameterInfo::kIsBypass : 0),
+			p,
+			0,
+			shortName ? ConstStringTable::instance()->getString(shortName) : nullptr
+		);
+	}
+
+printf("Controller set_parameters_info E \n"); fflush(stdout);
+	componentHandler->restartComponent(kReloadComponent);
+printf("Controller set_parameters_info F \n"); fflush(stdout);
+
 }
 
 tresult PLUGIN_API Controller::initialize(FUnknown *context) {

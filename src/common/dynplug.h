@@ -20,7 +20,7 @@ enum {
 #define BUFFER_SIZE 	32
 
 struct _dynplug {
-	//void*   data; // For example, this contains VST3's controller pointer
+	void*   data; // For example, this contains VST3's controller pointer
 	void*	module_handle; // dl(m)open result
 
 	void  	(*module_init)(void);
@@ -39,7 +39,7 @@ struct _dynplug {
 	int  	module_buses_out_n;
 	int  	module_channels_in_n;
 	int  	module_channels_out_n;
-	void 	(*module_get_parameter_info)(int index, char** name, char** shortName, char* out, char* bypass, int* steps, float* defaultValueUnmapped);
+	void 	(*module_get_parameter_info)(int index, char** name, char** shortName, char** units, char* out, char* bypass, int* steps, float* defaultValueUnmapped);
 };
 typedef struct _dynplug dynplug;
 

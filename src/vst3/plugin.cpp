@@ -147,9 +147,52 @@ static inline void _sse2neon_mm_set_flush_zero_mode(unsigned int flag)
 #define NO_DAZ_FTZ
 
 #endif
-#include <stdio.h>
+
+#include <stdio.h> // tmp
+
 Plugin::Plugin() {
 	setControllerClass(FUID(CTRL_GUID_1, CTRL_GUID_2, CTRL_GUID_3, CTRL_GUID_4));
+}
+
+#include "dynplug.h"
+
+void dynplug_set_parameters_info(dynplug *instance) {
+	printf("dyn set_parameters_info A %p \n", instance->data); fflush(stdout);
+	/*Controller* c = (Controller*) instance->data;
+	printf("dyn set_parameters_info B \n"); fflush(stdout);
+	if (!c) {
+		printf("Controller not found \n");
+		return;
+	}
+	printf("dyn set_parameters_info C \n"); fflush(stdout);
+	//c->set_parameters_info(instance);
+	*/
+
+	Plugin* p = (Plugin*) instance->data;
+	printf("dyn set_parameters_info B \n"); fflush(stdout);
+	if (!p) {
+		printf("Plugin not found \n");
+		return;
+	}
+	printf("dyn set_parameters_info C %p \n", instance); fflush(stdout);
+	//c->set_parameters_info(instance);
+
+	p->sendMessageToController("hi", (void*) (&instance), sizeof(void*	));
+	
+	printf("dyn set_parameters_info D \n"); fflush(stdout);
+}
+
+
+bool Plugin::sendMessageToController(const char* tag, const void* data, int size) {
+	auto message = allocateMessage();
+	if (!message)
+		return false;
+	FReleaser msgReleaser(message);
+	message->setMessageID("BinaryMessage");
+
+	message->getAttributes()->setBinary(tag, data, size); // Fix this hack
+	sendMessage(message);
+	return true;
 }
 
 tresult PLUGIN_API Plugin::notify(IMessage* message) {
@@ -161,7 +204,10 @@ tresult PLUGIN_API Plugin::notify(IMessage* message) {
 		uint32 size;
 		if( message->getAttributes()->getBinary( "procAddr", data, size ) == kResultOk ) {
 			printf("procAddr= %p\n", *((void**)data));
-			// TODO: ...
+			if (controller == nullptr) {
+				controller = *((void**)data);
+				//instance.data = (void*) controller;
+			}
 			return kResultOk;
 		}
 	}
@@ -173,6 +219,7 @@ tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
 	if (r != kResultTrue)
 		return r;
 
+	instance.data = (void*) this;
 	P_INIT(&instance);
 
 #ifdef P_NOTE_ON
@@ -252,6 +299,7 @@ tresult PLUGIN_API Plugin::setupProcessing(ProcessSetup &setup) {
 }
 
 tresult PLUGIN_API Plugin::process(ProcessData &data) {
+
 	if (data.numInputs != NUM_BUSES_IN || data.numOutputs != NUM_BUSES_OUT)
 		return kResultFalse;
 

@@ -37,6 +37,7 @@ public:
 		return (IAudioProcessor *) new Plugin();
 	}
 
+	bool sendMessageToController(const char* tag, const void* data, int size);
 	tresult PLUGIN_API notify (IMessage* message) SMTG_OVERRIDE;
 
 	tresult PLUGIN_API initialize(FUnknown *context) SMTG_OVERRIDE;
@@ -66,6 +67,8 @@ private:
 #ifdef P_MEM_REQ
 	void *mem;
 #endif
+
+	void* controller;
 };
 
 #endif
