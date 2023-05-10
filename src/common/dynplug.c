@@ -26,7 +26,7 @@ static void default_module_mod_wheel(char wheel) { (void)wheel; }
 static void default_module_get_parameter_info (int index, char** name, char** shortName, char** units, char* out, char* bypass, int* steps, float* defaultValueUnmapped) {
 	(void) index; (void) name; (void) shortName; (void) units; (void) out; (void) bypass; (void) steps; (void) defaultValueUnmapped;
 }
-static void load_default_module (dynplug* instance) {
+static void load_default_module (dynplug *instance) {
 	instance->module_init = &default_module_init;
 	instance->module_fini = &default_module_fini;
 	instance->module_set_sample_rate = &default_module_set_sample_rate;
@@ -46,7 +46,7 @@ static void load_default_module (dynplug* instance) {
 	instance->module_get_parameter_info = &default_module_get_parameter_info;
 }
 
-static int load_yaaaeapa_module (dynplug* instance, const char* path) {
+static int load_yaaaeapa_module (dynplug *instance, const char* path) {
 	instance->module_handle = dlmopen(LM_ID_NEWLM, path, RTLD_NOW | RTLD_LOCAL);
 
     if (!instance->module_handle) {
@@ -109,7 +109,7 @@ static int load_yaaaeapa_module (dynplug* instance, const char* path) {
 }
 
 
-static void unload_module(dynplug* instance) {
+static void unload_module(dynplug *instance) {
 	(*(instance->module_fini))();
 	if (!dlclose(instance->module_handle)) {
 		fprintf(stderr, "dlclose error: %s\n", dlerror());
@@ -117,38 +117,93 @@ static void unload_module(dynplug* instance) {
 	instance->module_handle = NULL;
 }
 
+void dynplug_on_create(dynplug *instance) {
+	printf("dynplug_on_create A\n"); fflush(stdout);
+	instance->server_status = 0;
+	int r = pthread_mutex_init(&(instance->mtx), NULL);
+	if (r) {
+		fprintf(stderr, "dynplug_on_create: error while initializing mutex\n");
+		return;
+	}
+}
+
+void dynplug_on_destroy(dynplug *instance) {
+	printf("dynplug_on_destroy A\n"); fflush(stdout);
+	int r = pthread_mutex_destroy(&(instance->mtx));
+	if (r) {
+		fprintf(stderr, "dynplug_on_destroy: error while destroying mutex\n");
+		return;
+	}
+}
+
 void dynplug_init(dynplug *instance) {
-	
-	// One day, here's the place to just init to default and to launch the server
-	// All the following will be made in server's thread
+	// We can't know how many times host may call this before fini
 
-	load_default_module(instance);
+printf("dynplug_init A\n"); fflush(stdout);
 
-	// Test for now
-	// TODO: check errors
-	load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
-	printf("dyn init A\n"); fflush(stdout);
-	//dynplug_set_parameters_info(instance);
-	printf("dyn init B\n"); fflush(stdout);
-	(*(instance->module_init))();
-	
+	int r;
+	r = pthread_mutex_lock(&(instance->mtx));
+
+
+	if (r) {
+		// TODO: handle error
+		fprintf(stderr, "dynplug_init: error while acquiring lock\n");
+		return;
+	}
+printf("dynplug_init B %i\n", instance->server_status); fflush(stdout);
+	if (instance->server_status == 0) {
+		load_default_module(instance);
+		// Let's start it;
+		r = pthread_create(&(instance->server_thread), NULL, dynplug_server, (void*) instance);
+		if (r != 0)
+			fprintf(stderr, "dynplug_init: error while creating server thread\n");
+		else {
+			instance->server_status = 1;
+		}
+	}
+	else if (instance->server_status == 1) {
+		// Ok
+	}
+	else if (instance->server_status == 2) {
+		// Cancel the stop order
+		instance->server_status = 1;
+	}
+
+	r = pthread_mutex_unlock(&(instance->mtx));
+	if (r) {
+		fprintf(stderr, "dynplug_init: error while releasing lock\n");
+		return;
+	}
+
+printf("dynplug_init Z\n"); fflush(stdout);
+
 }
 
 void dynplug_fini(dynplug *instance) {
+
+	printf("dynplug_fini A\n"); fflush(stdout);
+
+// TODO TODO TODO
+	// Call join
+
 	unload_module(instance);
+	// load default ?
 	// TODO: stop the server
 }
 
-static int aaaaa = 0;
+//static int aaaaa = 0;
 
 void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
 	(*(instance->module_set_sample_rate))(sample_rate);
+	
+/*
 	printf("dynplug_set_sample_rate A\n");
 
 	if (aaaaa == 0) {
 		aaaaa = 1;
 		dynplug_set_parameters_info(instance); // Tmp here
 	}
+	*/
 }
 
 void dynplug_reset(dynplug *instance) {
@@ -183,3 +238,33 @@ void dynplug_mod_wheel(dynplug *instance, char value) {
 	(*(instance->module_mod_wheel))(value);
 }
 
+
+#include <unistd.h>
+
+int msleep(unsigned int tms) {
+	return usleep(tms * 1000);
+}
+
+void* dynplug_server(void* data) {
+	
+// This is just a test
+
+printf("dynplug_server A\n"); fflush(stdout);
+	msleep(4000);
+printf("dynplug_server B\n"); fflush(stdout);
+	dynplug *instance = (dynplug*) data;
+
+	//load_default_module(instance);
+
+	// Test for now
+	// TODO: check errors
+	load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
+	
+printf("dynplug_server C\n"); fflush(stdout);
+	dynplug_set_parameters_info(instance);
+printf("dynplug_server D\n"); fflush(stdout);
+	(*(instance->module_init))();
+
+printf("dynplug_server Z\n"); fflush(stdout);
+	return NULL;
+}

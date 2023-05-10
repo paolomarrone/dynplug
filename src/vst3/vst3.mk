@@ -18,7 +18,8 @@ CXXFLAGS := \
 	-Wreturn-type \
 	-std=c++20
 LDFLAGS := \
-	-shared
+	-shared \
+	-lpthread
 
 SOURCES_COMMON := \
 	${COMMON_DIR}/entry.cpp \

@@ -65,6 +65,8 @@ void Controller::set_parameters_info(dynplug* instance) {
 	int n = instance->module_parameters_n;
 printf("Controller set_parameters_info B %d \n", n); fflush(stdout);
 	
+
+/*	
 	parameters.removeAll();
 
 printf("Controller set_parameters_info C \n"); fflush(stdout);
@@ -89,32 +91,60 @@ printf("Controller set_parameters_info C \n"); fflush(stdout);
 			shortName ? ConstStringTable::instance()->getString(shortName) : nullptr
 		);
 	}
+*/
+
+for (int i = 0; i < NUM_PARAMETERS; i++) {
+	if (i < n) {
+		printf("Controller set_parameters_info D %d \n", p); fflush(stdout);
+	
+		char *name, *shortName, *units, out, bypass;
+		int steps;
+		float defaultValueUnmapped;
+		instance->module_get_parameter_info(i, &name, &shortName, &units, &out, &bypass, &steps, &defaultValueUnmapped);
+
+		Parameter* p = getParameterByIndex(i);
+		ParameterInfo* pi = p->getInfo();
+
+		// TODO:  WIP HERE
+	}
+	else {
+
+	}
+}
+
 
 printf("Controller set_parameters_info E \n"); fflush(stdout);
-	componentHandler->restartComponent(kReloadComponent);
+	componentHandler->restartComponent(kParamTitlesChanged);
 printf("Controller set_parameters_info F \n"); fflush(stdout);
+
+printf("Controller set_parameters_info G %d \n", parameters.getParameterCount()); fflush(stdout);	
 
 }
 
 tresult PLUGIN_API Controller::initialize(FUnknown *context) {
+
+printf("Controller::initialize A\n"); fflush(stdout);
+
 	tresult r = EditController::initialize(context);
 	if (r != kResultTrue)
 		return r;
 
 	// add parameters
-	for (int i = 0; i < NUM_PARAMETERS; i++)
+	for (int i = 0; i < NUM_PARAMETERS; i++) {
+		const char s[3] = {'p', i + 48, '\0'};
 		parameters.addParameter(
-			ConstStringTable::instance()->getString(config_parameters[i].name),
-			config_parameters[i].units ? ConstStringTable::instance()->getString(config_parameters[i].units) : nullptr,
-			config_parameters[i].steps,
-			config_parameters[i].defaultValueUnmapped,
-			(config_parameters[i].out ? ParameterInfo::kIsReadOnly | ParameterInfo::kIsHidden : ParameterInfo::kCanAutomate)
-			| (config_parameters[i].bypass ? ParameterInfo::kIsBypass : 0),
+			ConstStringTable::instance()->getString(s),
+			nullptr,
+			0,
+			0.f,
+			kIsReadOnly,
+			0,
 			i,
 			0,
-			config_parameters[i].shortName ? ConstStringTable::instance()->getString(config_parameters[i].shortName) : nullptr
+			ConstStringTable::instance()->getString(s)
 		);
-
+	}
+// What to do with this?
 #ifdef P_PITCH_BEND
 	parameters.addParameter(
 			ConstStringTable::instance()->getString("MIDI Pitch Bend"),

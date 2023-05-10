@@ -32,6 +32,7 @@ using namespace Steinberg::Vst;
 class Plugin : AudioEffect {
 public:
 	Plugin();
+	~Plugin();
 
 	static FUnknown *createInstance(void *context) {
 		return (IAudioProcessor *) new Plugin();

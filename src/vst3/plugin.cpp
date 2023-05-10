@@ -152,6 +152,11 @@ static inline void _sse2neon_mm_set_flush_zero_mode(unsigned int flag)
 
 Plugin::Plugin() {
 	setControllerClass(FUID(CTRL_GUID_1, CTRL_GUID_2, CTRL_GUID_3, CTRL_GUID_4));
+	dynplug_on_create(&instance);
+}
+
+Plugin::~Plugin() {
+	dynplug_on_destroy(&instance); 
 }
 
 #include "dynplug.h"

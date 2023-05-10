@@ -46,8 +46,9 @@ static struct config_io_bus config_buses_out[NUM_BUSES_OUT] = {
 	{ "Audio out", 1, 0, 0, IO_MONO }
 };
 
-#define NUM_PARAMETERS		5
+#define NUM_PARAMETERS		100 // Max number of parameters
 
+/*
 static struct config_parameter config_parameters[NUM_PARAMETERS] = {
 	{ "p1", "p1", "", 0, 0, 0, 0.5f },
 	{ "p2", "p2", "", 0, 0, 0, 0.5f },
@@ -56,6 +57,7 @@ static struct config_parameter config_parameters[NUM_PARAMETERS] = {
 	{ "p5", "p5", "", 0, 0, 0, 0.5f }
 	// TODO: some output parameters
 };
+*/
 
 // Internal API
 

@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+#include <pthread.h>
+
 // We only support yaaaeapa for now. Maybe LADSPA in future?
 
 // Fix
@@ -22,6 +24,10 @@ enum {
 struct _dynplug {
 	void*   data; // For example, this contains VST3's controller pointer
 	void*	module_handle; // dl(m)open result
+
+	pthread_t server_thread;
+	int 	server_status; // 0 = off, 1 = on, 2 = need to stop
+	pthread_mutex_t mtx;
 
 	void  	(*module_init)(void);
 	void  	(*module_fini)(void);
@@ -43,6 +49,8 @@ struct _dynplug {
 };
 typedef struct _dynplug dynplug;
 
+void dynplug_on_create(dynplug *instance);
+void dynplug_on_destroy(dynplug *instance);
 void dynplug_init(dynplug *instance);
 void dynplug_fini(dynplug *instance);
 void dynplug_set_sample_rate(dynplug *instance, float sample_rate);
@@ -64,6 +72,8 @@ void dynplug_mod_wheel(dynplug *instance, char value);
 	Implementation specific for vst3/LADSPA/ecc..
 */
 void dynplug_set_parameters_info(dynplug *instance);
+
+void* dynplug_server(void* data);
 
 #ifdef __cplusplus
 }
