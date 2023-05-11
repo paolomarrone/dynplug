@@ -161,30 +161,15 @@ Plugin::~Plugin() {
 
 #include "dynplug.h"
 
-void dynplug_set_parameters_info(dynplug *instance) {
-	printf("dyn set_parameters_info A %p \n", instance->data); fflush(stdout);
-	/*Controller* c = (Controller*) instance->data;
-	printf("dyn set_parameters_info B \n"); fflush(stdout);
-	if (!c) {
-		printf("Controller not found \n");
-		return;
-	}
-	printf("dyn set_parameters_info C \n"); fflush(stdout);
-	//c->set_parameters_info(instance);
-	*/
-
-	Plugin* p = (Plugin*) instance->data;
-	printf("dyn set_parameters_info B \n"); fflush(stdout);
+void dynplug_set_parameters_info(dynplug *instance) {	
+	Plugin* p = (Plugin*) instance->data; // TODO: is this nice? Yeah, probably
 	if (!p) {
-		printf("Plugin not found \n");
+		printf("dynplug_set_parameters_info: error: Plugin reference not found \n");
 		return;
 	}
-	printf("dyn set_parameters_info C %p \n", instance); fflush(stdout);
-	//c->set_parameters_info(instance);
 
-	p->sendMessageToController("hi", (void*) (&instance), sizeof(void*	));
-	
-	printf("dyn set_parameters_info D \n"); fflush(stdout);
+	if (!(p->sendMessageToController("set_parameters_info", (void*) (&instance), sizeof(void*))))
+		fprintf(stderr, "dynplug_set_parameters_info error: Could not send message to controller");
 }
 
 
@@ -194,12 +179,12 @@ bool Plugin::sendMessageToController(const char* tag, const void* data, int size
 		return false;
 	FReleaser msgReleaser(message);
 	message->setMessageID("BinaryMessage");
-
-	message->getAttributes()->setBinary(tag, data, size); // Fix this hack
+	message->getAttributes()->setBinary(tag, data, size);
 	sendMessage(message);
 	return true;
 }
 
+/*
 tresult PLUGIN_API Plugin::notify(IMessage* message) {
 	if(!message)
 		return kInvalidArgument;
@@ -218,6 +203,7 @@ tresult PLUGIN_API Plugin::notify(IMessage* message) {
 	}
 	return AudioEffect::notify( message );
 }
+*/
 
 tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
 	tresult r = AudioEffect::initialize(context);
@@ -227,9 +213,7 @@ tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
 	instance.data = (void*) this;
 	P_INIT(&instance);
 
-#ifdef P_NOTE_ON
 	addEventInput(ConstStringTable::instance()->getString("MIDI Input"));
-#endif
 
 	// FIXME: vst3 sdk validator always seem to get kDefaultActive even in sdk plugins - it's probably broken, but let's check
 #if NUM_BUSES_IN != 0
@@ -254,47 +238,24 @@ tresult PLUGIN_API Plugin::initialize(FUnknown *context) {
 		);
 #endif
 
-#if NUM_PARAMETERS != 0
 	for (int i = 0; i < NUM_PARAMETERS; i++) {
-		parameters[i] = config_parameters[i].defaultValueUnmapped;
+		parameters[i] = 0.f;
 		P_SET_PARAMETER(&instance, i, parameters[i]);
 	}
-#endif
-
-#ifdef P_MEM_REQ
-	this->mem = NULL;
-#endif
 
 	return kResultTrue;
 }
 
 tresult PLUGIN_API Plugin::terminate() {
+	P_FINI(&instance);
 	return AudioEffect::terminate();
 }
 
 tresult PLUGIN_API Plugin::setActive(TBool state) {
 	if (state) {
 		P_SET_SAMPLE_RATE(&instance, sampleRate);
-#ifdef P_MEM_REQ
-		size_t req = P_MEM_REQ(&instance);
-		if (req) {
-			void *mem = malloc(req);
-			if (mem == NULL)
-				return kResultFalse;
-			P_MEM_SET(&instance, mem);
-			this->mem = mem;
-		}
-#endif
 		P_RESET(&instance);
 	}
-#ifdef P_MEM_REQ
-	else {
-		if (this->mem) {
-			free(this->mem);
-			this->mem = NULL;
-		}
-	}
-#endif
 	return AudioEffect::setActive(state);
 }
 
@@ -308,7 +269,6 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 	if (data.numInputs != NUM_BUSES_IN || data.numOutputs != NUM_BUSES_OUT)
 		return kResultFalse;
 
-#if NUM_PARAMETERS != 0
 	if (data.inputParameterChanges) {
 		int32 n = data.inputParameterChanges->getParameterCount();
 		for (int32 i = 0; i < n; i++) {
@@ -320,16 +280,12 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 			if (q->getPoint(q->getPointCount() - 1, o, v) == kResultTrue) {
 				int32 pi = q->getParameterId();
 				switch (pi) {
-#ifdef P_PITCH_BEND
 				case TAG_PITCH_BEND:
 					P_PITCH_BEND(&instance, static_cast<int>(16383.f * std::min(std::max(static_cast<float>(v), 0.f), 1.f)));
 					break;
-#endif
-#ifdef P_MOD_WHEEL
 				case TAG_MOD_WHEEL:
 					P_MOD_WHEEL(&instance, static_cast<char>(127.f * std::min(std::max(static_cast<float>(v), 0.f), 1.f)));
 					break;
-#endif
 				default:
 					parameters[pi] = v;
 					P_SET_PARAMETER(&instance, pi, std::min(std::max(static_cast<float>(v), 0.f), 1.f));
@@ -338,9 +294,7 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 			}
 		}
 	}
-#endif
 
-#ifdef P_NOTE_ON
 	if (data.inputEvents) {
 		int32 n = data.inputEvents->getEventCount();
 		for (int i = 0; i < n; i++) {
@@ -357,7 +311,6 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 			}
 		}
 	}
-#endif
 
 #if NUM_BUSES_IN != 0
 	int ki = 0;
@@ -394,9 +347,10 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 	_MM_SET_DENORMALS_ZERO_MODE(denormals_zero_mode);
 #endif
 
-#if NUM_PARAMETERS != 0
-	for (int i = 0; i < NUM_PARAMETERS; i++) {
-		if (!config_parameters[i].out)
+	for (int i = 0; i < instance.module_parameters_n; i++) {
+		char out;
+		instance.module_get_parameter_info(i, NULL, NULL, NULL, &out, NULL, NULL, NULL);
+		if (!out)
 			continue;
 		float v = P_GET_PARAMETER(&instance, i);
 		if (parameters[i] == v)
@@ -409,7 +363,7 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 				paramQueue->addPoint(0, v, index);
 		}
 	}
-#endif
+
 
 	return kResultTrue;
 }
@@ -439,31 +393,37 @@ tresult PLUGIN_API Plugin::setState(IBStream *state) {
 	if (!state)
 		return kResultFalse;
 
-#if NUM_PARAMETERS != 0
+	// Let's avoid this for now
+	/*
 	IBStreamer streamer(state, kLittleEndian);
 
 	float f;
-	for (int i = 0; i < NUM_PARAMETERS; i++) {
-		if (config_parameters[i].out)
+	for (int i = 0; i < instance.module_parameters_n; i++) {
+		char out;
+		instance.module_get_parameter_info(i, NULL, NULL, NULL, &out, NULL, NULL, NULL);
+		if (out)
 			continue;
 		if (streamer.readFloat(f) == false)
 			return kResultFalse;
 		parameters[i] = f;
 		P_SET_PARAMETER(&instance, i, f);
 	}
-#endif
-
+	*/
 	return kResultTrue;
 }
 
 tresult PLUGIN_API Plugin::getState(IBStream *state) {
-#if NUM_PARAMETERS != 0
+
+	// Let's avoid this for now
+	/*
 	IBStreamer streamer(state, kLittleEndian);
 
-	for (int i = 0; i < NUM_PARAMETERS; i++)
-		if (!config_parameters[i].out)
+	for (int i = 0; i < instance.module_parameters_n; i++) {
+		char out;
+		instance.module_get_parameter_info(i, NULL, NULL, NULL, &out, NULL, NULL, NULL);
+		if (!out)
 			streamer.writeFloat(parameters[i]);
-#endif
-
+	}
+	*/
 	return kResultTrue;
 }

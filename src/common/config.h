@@ -14,16 +14,6 @@ struct config_io_bus {
 	char		 configs;
 };
 
-struct config_parameter {
-	const char	*name;
-	const char	*shortName;
-	const char	*units;
-	char		 out;
-	char		 bypass;
-	int		 steps;
-	float		 defaultValueUnmapped;
-};
-
 // Data
 
 #define COMPANY_NAME		"Orastron"
@@ -35,7 +25,7 @@ struct config_parameter {
 
 #define NUM_BUSES_IN		1
 #define NUM_BUSES_OUT		1
-#define NUM_CHANNELS_IN		1	// Should be higher and fixed
+#define NUM_CHANNELS_IN		1	// TODO: Should be higher and fixed
 #define NUM_CHANNELS_OUT	1	// ^
 
 static struct config_io_bus config_buses_in[NUM_BUSES_IN] = {
@@ -46,18 +36,7 @@ static struct config_io_bus config_buses_out[NUM_BUSES_OUT] = {
 	{ "Audio out", 1, 0, 0, IO_MONO }
 };
 
-#define NUM_PARAMETERS		100 // Max number of parameters
-
-/*
-static struct config_parameter config_parameters[NUM_PARAMETERS] = {
-	{ "p1", "p1", "", 0, 0, 0, 0.5f },
-	{ "p2", "p2", "", 0, 0, 0, 0.5f },
-	{ "p3", "p3", "", 0, 0, 0, 0.5f },
-	{ "p4", "p4", "", 0, 0, 0, 0.5f },
-	{ "p5", "p5", "", 0, 0, 0, 0.5f }
-	// TODO: some output parameters
-};
-*/
+#define NUM_PARAMETERS		50 // Max number of parameters
 
 // Internal API
 
@@ -75,7 +54,5 @@ static struct config_parameter config_parameters[NUM_PARAMETERS] = {
 #define P_NOTE_OFF			dynplug_note_off
 #define P_PITCH_BEND		dynplug_pitch_bend
 #define P_MOD_WHEEL			dynplug_mod_wheel
-//#define P_MEM_REQ			dynplug_mem_req
-//#define P_MEM_SET 			dynplug_mem_set
 
 #endif

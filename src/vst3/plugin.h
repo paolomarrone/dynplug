@@ -39,7 +39,7 @@ public:
 	}
 
 	bool sendMessageToController(const char* tag, const void* data, int size);
-	tresult PLUGIN_API notify (IMessage* message) SMTG_OVERRIDE;
+	//tresult PLUGIN_API notify (IMessage* message) SMTG_OVERRIDE;
 
 	tresult PLUGIN_API initialize(FUnknown *context) SMTG_OVERRIDE;
 	tresult PLUGIN_API terminate() SMTG_OVERRIDE;
@@ -53,9 +53,7 @@ public:
 private:
 	float sampleRate;
 
-#if NUM_PARAMETERS != 0
 	float parameters[NUM_PARAMETERS];
-#endif
 
 	P_TYPE instance;
 #if NUM_BUSES_IN != 0
@@ -65,11 +63,6 @@ private:
 	float *outputs[NUM_CHANNELS_OUT];
 #endif
 
-#ifdef P_MEM_REQ
-	void *mem;
-#endif
-
-	void* controller;
 };
 
 #endif

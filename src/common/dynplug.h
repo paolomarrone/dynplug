@@ -7,27 +7,19 @@ extern "C" {
 
 #include <pthread.h>
 
-// We only support yaaaeapa for now. Maybe LADSPA in future?
-
-// Fix
-enum {
-	p_1,
-	p_2,
-	p_3,
-	p_4,
-	p_5,
-	p_n
-};
-
-#define BUFFER_SIZE 	32
+/* 
+	We only support yaaaeapa for now. Maybe LADSPA in future?
+*/
 
 struct _dynplug {
-	void*   data; // For example, this contains VST3's controller pointer
+	void*   data; // For example, this contains VST3's Plugin instance pointer
 	void*	module_handle; // dl(m)open result
 
 	pthread_t server_thread;
 	int 	server_status; // 0 = off, 1 = on, 2 = need to stop
 	pthread_mutex_t mtx;
+
+	float sample_rate;
 
 	void  	(*module_init)(void);
 	void  	(*module_fini)(void);
@@ -62,10 +54,6 @@ void dynplug_note_on(dynplug *instance, char note, char velocity);
 void dynplug_note_off(dynplug *instance, char note);
 void dynplug_pitch_bend(dynplug *instance, int value);
 void dynplug_mod_wheel(dynplug *instance, char value);
-
-
-//void dynplug_set_data(dynplug *instance, void* data);
-//void* dynplug_get_data(dynplug *instance);
 
 /*
 	Informs the DAW about the new parameters

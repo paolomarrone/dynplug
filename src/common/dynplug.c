@@ -27,6 +27,7 @@ static void default_module_get_parameter_info (int index, char** name, char** sh
 	(void) index; (void) name; (void) shortName; (void) units; (void) out; (void) bypass; (void) steps; (void) defaultValueUnmapped;
 }
 static void load_default_module (dynplug *instance) {
+	instance->module_handle = NULL;
 	instance->module_init = &default_module_init;
 	instance->module_fini = &default_module_fini;
 	instance->module_set_sample_rate = &default_module_set_sample_rate;
@@ -111,14 +112,12 @@ static int load_yaaaeapa_module (dynplug *instance, const char* path) {
 
 static void unload_module(dynplug *instance) {
 	(*(instance->module_fini))();
-	if (!dlclose(instance->module_handle)) {
+	if (instance->module_handle && dlclose(instance->module_handle))
 		fprintf(stderr, "dlclose error: %s\n", dlerror());
-	}
 	instance->module_handle = NULL;
 }
 
 void dynplug_on_create(dynplug *instance) {
-	printf("dynplug_on_create A\n"); fflush(stdout);
 	instance->server_status = 0;
 	int r = pthread_mutex_init(&(instance->mtx), NULL);
 	if (r) {
@@ -128,7 +127,6 @@ void dynplug_on_create(dynplug *instance) {
 }
 
 void dynplug_on_destroy(dynplug *instance) {
-	printf("dynplug_on_destroy A\n"); fflush(stdout);
 	int r = pthread_mutex_destroy(&(instance->mtx));
 	if (r) {
 		fprintf(stderr, "dynplug_on_destroy: error while destroying mutex\n");
@@ -139,18 +137,14 @@ void dynplug_on_destroy(dynplug *instance) {
 void dynplug_init(dynplug *instance) {
 	// We can't know how many times host may call this before fini
 
-printf("dynplug_init A\n"); fflush(stdout);
-
 	int r;
 	r = pthread_mutex_lock(&(instance->mtx));
 
-
 	if (r) {
-		// TODO: handle error
 		fprintf(stderr, "dynplug_init: error while acquiring lock\n");
 		return;
 	}
-printf("dynplug_init B %i\n", instance->server_status); fflush(stdout);
+
 	if (instance->server_status == 0) {
 		load_default_module(instance);
 		// Let's start it;
@@ -174,36 +168,40 @@ printf("dynplug_init B %i\n", instance->server_status); fflush(stdout);
 		fprintf(stderr, "dynplug_init: error while releasing lock\n");
 		return;
 	}
-
-printf("dynplug_init Z\n"); fflush(stdout);
-
 }
 
 void dynplug_fini(dynplug *instance) {
-
-	printf("dynplug_fini A\n"); fflush(stdout);
-
-// TODO TODO TODO
-	// Call join
+	int r;
+	r = pthread_mutex_lock(&(instance->mtx));
+	if (r) {
+		fprintf(stderr, "dynplug_server: error while acquiring lock\n");
+		return;
+	}
 
 	unload_module(instance);
-	// load default ?
-	// TODO: stop the server
+	load_default_module(instance); // Just in case the host calls process after fini...
+
+	if (instance->server_status == 0)
+		;
+	else if (instance->server_status == 1)
+		instance->server_status = 2;
+	else 
+		fprintf(stderr, "dynplug_fini: error in server_status\n");
+
+	r = pthread_mutex_unlock(&(instance->mtx));
+	if (r) {
+		fprintf(stderr, "dynplug_fini: error while releasing lock\n");
+		return;
+	}
+
+	if (pthread_join(instance->server_thread, NULL) != 0) {
+		fprintf(stderr, "dynplug_fini: error while joining with server\n");
+	}
 }
 
-//static int aaaaa = 0;
-
 void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
+	instance->sample_rate = sample_rate;
 	(*(instance->module_set_sample_rate))(sample_rate);
-	
-/*
-	printf("dynplug_set_sample_rate A\n");
-
-	if (aaaaa == 0) {
-		aaaaa = 1;
-		dynplug_set_parameters_info(instance); // Tmp here
-	}
-	*/
 }
 
 void dynplug_reset(dynplug *instance) {
@@ -247,24 +245,48 @@ int msleep(unsigned int tms) {
 
 void* dynplug_server(void* data) {
 	
-// This is just a test
+	// This is just a test
 
-printf("dynplug_server A\n"); fflush(stdout);
 	msleep(4000);
-printf("dynplug_server B\n"); fflush(stdout);
+
 	dynplug *instance = (dynplug*) data;
 
-	//load_default_module(instance);
 
-	// Test for now
-	// TODO: check errors
-	load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
-	
-printf("dynplug_server C\n"); fflush(stdout);
-	dynplug_set_parameters_info(instance);
-printf("dynplug_server D\n"); fflush(stdout);
-	(*(instance->module_init))();
+	int r;
+	r = pthread_mutex_lock(&(instance->mtx)); // TODO: maybe trylock is better?
 
-printf("dynplug_server Z\n"); fflush(stdout);
+	if (r) {
+		fprintf(stderr, "dynplug_server: error while acquiring lock\n");
+		return NULL;
+	}
+
+	// TODO: this goes in the loop
+	if (instance->server_status == 2) {
+		// TODO: terminate thread
+	}
+
+	unload_module(instance);
+	r = load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
+	if (r)
+		fprintf(stderr, "dynplug_server: error while loading module\n");
+	else {
+		dynplug_set_parameters_info(instance);
+		(*(instance->module_init))();
+		(*(instance->module_set_sample_rate))(instance->sample_rate);
+		(*(instance->module_reset))();
+		for (int i = 0; i < instance->module_parameters_n; i++) {
+			float defaultValueUnmapped;
+			instance->module_get_parameter_info(i, NULL, NULL, NULL, NULL, NULL, NULL, &defaultValueUnmapped);
+			instance->module_set_parameter(i, defaultValueUnmapped);
+		}
+		// TODO: set default values in the host
+	}
+
+	r = pthread_mutex_unlock(&(instance->mtx));
+	if (r) {
+		fprintf(stderr, "dynplug_server: error while releasing lock\n");
+		return NULL;
+	}
+
 	return NULL;
 }
