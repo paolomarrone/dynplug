@@ -11,7 +11,7 @@ static void default_module_init(void) {}
 static void default_module_fini(void) {}
 static void default_module_set_sample_rate(float sample_rate) { (void)sample_rate; }
 static void default_module_reset(void) {}
-static void default_module_process(const float** x, float** y, int n_samples) { 
+static void default_module_process(const float** x, float** y, int n_samples) { // TODO: Check channels
 	(void)x; (void)y; (void)n_samples;
 	for (int i = 0; i < NUM_CHANNELS_OUT; i++)
 		for (int s = 0; s < n_samples; s++)
@@ -205,35 +205,67 @@ void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
 }
 
 void dynplug_reset(dynplug *instance) {
-	(*(instance->module_reset))();
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_reset))();
+		pthread_mutex_unlock(&(instance->mtx));
+	}
 }
 
 void dynplug_process(dynplug *instance, const float** x, float** y, int n_samples) {
-	(*(instance->module_process))(x, y, n_samples);
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_process))(x, y, n_samples);
+		pthread_mutex_unlock(&(instance->mtx));
+	}
+	else
+		default_module_process(x, y, n_samples); // TODO: Check channels
 }
 
 void dynplug_set_parameter(dynplug *instance, int index, float value) {
-	(*(instance->module_set_parameter))(index, value);
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_set_parameter))(index, value);
+		pthread_mutex_unlock(&(instance->mtx));
+	}
+	/* 	There should be no need to save the value for later. 
+		The only case when the lock is not acquired is when the server is 
+		loading another module.
+	*/
 }
 
 float dynplug_get_parameter(dynplug *instance, int index) {
-	return (*(instance->module_get_parameter))(index);
+	float v = 0.f;
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		v = (*(instance->module_get_parameter))(index);
+		pthread_mutex_unlock(&(instance->mtx));
+	}
+	return v;
 }
 
 void dynplug_note_on(dynplug *instance, char note, char velocity) {
-	(*(instance->module_note_on))(note, velocity);	
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_note_on))(note, velocity);	
+		pthread_mutex_unlock(&(instance->mtx));
+	}
 }
 
 void dynplug_note_off(dynplug *instance, char note) {
-	(*(instance->module_note_off))(note);	
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_note_off))(note);	
+		pthread_mutex_unlock(&(instance->mtx));
+	}
 }
 
 void dynplug_pitch_bend(dynplug *instance, int value) {
-	(*(instance->module_pitch_bend))(value);	
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_pitch_bend))(value);	
+		pthread_mutex_unlock(&(instance->mtx));
+	}
 }
 
 void dynplug_mod_wheel(dynplug *instance, char value) {
-	(*(instance->module_mod_wheel))(value);
+	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+		(*(instance->module_mod_wheel))(value);
+		pthread_mutex_unlock(&(instance->mtx));
+	}
 }
 
 
@@ -279,7 +311,6 @@ void* dynplug_server(void* data) {
 			instance->module_get_parameter_info(i, NULL, NULL, NULL, NULL, NULL, NULL, &defaultValueUnmapped);
 			instance->module_set_parameter(i, defaultValueUnmapped);
 		}
-		// TODO: set default values in the host
 	}
 
 	r = pthread_mutex_unlock(&(instance->mtx));

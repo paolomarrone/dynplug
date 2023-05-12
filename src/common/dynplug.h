@@ -56,7 +56,7 @@ void dynplug_pitch_bend(dynplug *instance, int value);
 void dynplug_mod_wheel(dynplug *instance, char value);
 
 /*
-	Informs the DAW about the new parameters
+	Informs the DAW about the new parameters info and set default values
 	Implementation specific for vst3/LADSPA/ecc..
 */
 void dynplug_set_parameters_info(dynplug *instance);

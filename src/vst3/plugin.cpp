@@ -162,7 +162,7 @@ Plugin::~Plugin() {
 #include "dynplug.h"
 
 void dynplug_set_parameters_info(dynplug *instance) {	
-	Plugin* p = (Plugin*) instance->data; // TODO: is this nice? Yeah, probably
+	Plugin* p = (Plugin*) instance->data;
 	if (!p) {
 		printf("dynplug_set_parameters_info: error: Plugin reference not found \n");
 		return;

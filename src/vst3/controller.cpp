@@ -25,10 +25,8 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "common.h"
 
-#include <stdio.h> // tmp
+#include <stdio.h>
 
-
-// TODO: fix
 /*
 bool Controller::sendMessageToProcessor(const char* tag, const void* data, int size) {
 	auto message = allocateMessage();
@@ -37,7 +35,7 @@ bool Controller::sendMessageToProcessor(const char* tag, const void* data, int s
 	FReleaser msgReleaser(message);
 	message->setMessageID("BinaryMessage");
 
-	message->getAttributes()->setBinary(tag, &data, size); // Fix this hack
+	message->getAttributes()->setBinary(tag, data, size);
 	sendMessage(message);
 	return true;
 }
@@ -94,8 +92,17 @@ void Controller::set_parameters_info(dynplug* instance) {
 			pi.flags = ParameterInfo::kIsHidden;
 		}
 	}
-
+	// Not every host cares about this, but still
 	componentHandler->restartComponent(kParamTitlesChanged | kParamValuesChanged);
+
+	// Not every host cares about this, but still
+	for (int i = 0; i < n; i++) {
+		float defaultValueUnmapped;
+		instance->module_get_parameter_info(i, NULL, NULL, NULL, NULL, NULL, NULL, &defaultValueUnmapped);
+		beginEdit(i);
+		performEdit(i, defaultValueUnmapped);
+		endEdit(i);
+	}
 }
 
 tresult PLUGIN_API Controller::initialize(FUnknown *context) {
