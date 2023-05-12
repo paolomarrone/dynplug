@@ -390,11 +390,13 @@ tresult PLUGIN_API Plugin::setBusArrangements(SpeakerArrangement *inputs, int32 
 }
 
 tresult PLUGIN_API Plugin::setState(IBStream *state) {
-	if (!state)
-		return kResultFalse;
+	(void) state;
 
 	// Let's avoid this for now
 	/*
+	if (!state)
+		return kResultFalse;
+
 	IBStreamer streamer(state, kLittleEndian);
 
 	float f;
@@ -413,7 +415,7 @@ tresult PLUGIN_API Plugin::setState(IBStream *state) {
 }
 
 tresult PLUGIN_API Plugin::getState(IBStream *state) {
-
+	(void) state;
 	// Let's avoid this for now
 	/*
 	IBStreamer streamer(state, kLittleEndian);

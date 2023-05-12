@@ -35,6 +35,7 @@ public:
 	~Plugin();
 
 	static FUnknown *createInstance(void *context) {
+		(void) context;
 		return (IAudioProcessor *) new Plugin();
 	}
 

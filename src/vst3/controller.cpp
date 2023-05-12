@@ -176,6 +176,7 @@ tresult PLUGIN_API Controller::setComponentState(IBStream *state) {
 }
 
 tresult PLUGIN_API Controller::getMidiControllerAssignment(int32 busIndex, int16 channel, CtrlNumber midiControllerNumber, ParamID& id) {
+	(void) channel;
 	if (busIndex != 0)
 		return kResultFalse;
 
