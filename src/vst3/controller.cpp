@@ -155,7 +155,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown *context) {
 }
 
 tresult PLUGIN_API Controller::setComponentState(IBStream *state) {
-
+	(void) state;
 	// Let's avoid this for now
 	/*
 	if (!state)

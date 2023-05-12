@@ -25,18 +25,18 @@ struct config_io_bus {
 
 #define NUM_BUSES_IN		1
 #define NUM_BUSES_OUT		1
-#define NUM_CHANNELS_IN		1	// TODO: Should be higher and fixed
-#define NUM_CHANNELS_OUT	1	// ^
+#define NUM_CHANNELS_IN		2	// TODO: Should be higher and fixed
+#define NUM_CHANNELS_OUT	2	// ^
 
 static struct config_io_bus config_buses_in[NUM_BUSES_IN] = {
-	{ "Audio in", 0, 0, 0, IO_MONO }
+	{ "Audio in", 0, 0, 0, IO_STEREO }
 };
 
 static struct config_io_bus config_buses_out[NUM_BUSES_OUT] = {
-	{ "Audio out", 1, 0, 0, IO_MONO }
+	{ "Audio out", 1, 0, 0, IO_STEREO }
 };
 
-#define NUM_PARAMETERS		50 // Max number of parameters
+#define NUM_PARAMETERS		30 // Max number of parameters
 
 // Internal API
 
