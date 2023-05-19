@@ -1,7 +1,19 @@
 #include "dynplug.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <dlfcn.h>
+#ifdef _WIN32
+#include "windows.h"
+#endif
+
+#include <sys/types.h> // For windows?
+#include <sys/stat.h>
+#include <errno.h>
+
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "config.h"
 
@@ -47,8 +59,8 @@ static void load_default_module (dynplug *instance) {
 	instance->module_get_parameter_info = &default_module_get_parameter_info;
 }
 
-static int load_yaaaeapa_module (dynplug *instance, const char* path) {
-	instance->module_handle = dlmopen(LM_ID_NEWLM, path, RTLD_NOW | RTLD_LOCAL);
+static int load_yaaaeapa_module (dynplug *instance) {
+	instance->module_handle = dlmopen(LM_ID_NEWLM, instance->module_path, RTLD_NOW | RTLD_LOCAL);
 
     if (!instance->module_handle) {
         fprintf(stderr, "dlmopen error: %s\n", dlerror());
@@ -82,7 +94,9 @@ static int load_yaaaeapa_module (dynplug *instance, const char* path) {
 		syms[i] = dlsym(instance->module_handle, sym_names[i]);
 		if (!syms[i]) {
 			fprintf(stderr, "dlsym error reading '%s': %s\n", sym_names[i], dlerror());
-        	return 1;
+			dlclose(instance->module_handle);
+			instance->module_handle = NULL;
+        	return 2;
 		}
 	}
 
@@ -112,22 +126,28 @@ static int load_yaaaeapa_module (dynplug *instance, const char* path) {
 
 static void unload_module(dynplug *instance) {
 	(*(instance->module_fini))();
-	if (instance->module_handle && dlclose(instance->module_handle))
+	if (instance->module_handle && dlclose(instance->module_handle)) {
 		fprintf(stderr, "dlclose error: %s\n", dlerror());
+		// TODO: delete file from disk.
+		// TODO: think better about this: it breaks when multiple dynplug instances are running and loading the same module...
+	}
 	instance->module_handle = NULL;
 }
 
 void dynplug_on_create(dynplug *instance) {
-	instance->server_status = 0;
-	int r = pthread_mutex_init(&(instance->mtx), NULL);
+	instance->module_listener_status = 0;
+	int r = pthread_mutex_init(&(instance->module_mtx), NULL)
+		||  pthread_mutex_init(&(instance->module_listener_mtx), NULL);
 	if (r) {
 		fprintf(stderr, "dynplug_on_create: error while initializing mutex\n");
 		return;
 	}
+
 }
 
 void dynplug_on_destroy(dynplug *instance) {
-	int r = pthread_mutex_destroy(&(instance->mtx));
+	int r = pthread_mutex_destroy(&(instance->module_mtx))
+		||  pthread_mutex_destroy(&(instance->module_listener_mtx));
 	if (r) {
 		fprintf(stderr, "dynplug_on_destroy: error while destroying mutex\n");
 		return;
@@ -137,65 +157,49 @@ void dynplug_on_destroy(dynplug *instance) {
 void dynplug_init(dynplug *instance) {
 	// We can't know how many times host may call this before fini
 
-	int r;
-	r = pthread_mutex_lock(&(instance->mtx));
+	pthread_mutex_lock(&(instance->module_mtx));
+	pthread_mutex_lock(&(instance->module_listener_mtx));
 
-	if (r) {
-		fprintf(stderr, "dynplug_init: error while acquiring lock\n");
-		return;
-	}
-
-	if (instance->server_status == 0) {
+	if (instance->module_listener_status == 0) {
 		load_default_module(instance);
-		// Let's start it;
-		r = pthread_create(&(instance->server_thread), NULL, dynplug_server, (void*) instance);
+		int r = pthread_create(&(instance->module_listener_thread), NULL, dynplug_module_listener, (void*) instance);
 		if (r != 0)
-			fprintf(stderr, "dynplug_init: error while creating server thread\n");
+			fprintf(stderr, "dynplug_init: error while creating module_listener thread\n");
 		else {
-			instance->server_status = 1;
+			instance->module_listener_status = 1;
 		}
 	}
-	else if (instance->server_status == 1) {
+	else if (instance->module_listener_status == 1) {
 		// Ok
 	}
-	else if (instance->server_status == 2) {
+	else if (instance->module_listener_status == 2) {
 		// Cancel the stop order
-		instance->server_status = 1;
+		instance->module_listener_status = 1;
 	}
 
-	r = pthread_mutex_unlock(&(instance->mtx));
-	if (r) {
-		fprintf(stderr, "dynplug_init: error while releasing lock\n");
-		return;
-	}
+	pthread_mutex_unlock(&(instance->module_mtx));
+	pthread_mutex_unlock(&(instance->module_listener_mtx));
 }
 
 void dynplug_fini(dynplug *instance) {
-	int r;
-	r = pthread_mutex_lock(&(instance->mtx));
-	if (r) {
-		fprintf(stderr, "dynplug_server: error while acquiring lock\n");
-		return;
-	}
+	pthread_mutex_lock(&(instance->module_mtx));
+	pthread_mutex_lock(&(instance->module_listener_mtx));
 
 	unload_module(instance);
 	load_default_module(instance); // Just in case the host calls process after fini...
 
-	if (instance->server_status == 0)
+	if (instance->module_listener_status == 0)
 		;
-	else if (instance->server_status == 1)
-		instance->server_status = 2;
+	else if (instance->module_listener_status == 1)
+		instance->module_listener_status = 2;
 	else 
-		fprintf(stderr, "dynplug_fini: error in server_status\n");
+		fprintf(stderr, "dynplug_fini: error in module_listener_status\n");
 
-	r = pthread_mutex_unlock(&(instance->mtx));
-	if (r) {
-		fprintf(stderr, "dynplug_fini: error while releasing lock\n");
-		return;
-	}
+	pthread_mutex_unlock(&(instance->module_mtx));
+	pthread_mutex_unlock(&(instance->module_listener_mtx));
 
-	if (pthread_join(instance->server_thread, NULL) != 0) {
-		fprintf(stderr, "dynplug_fini: error while joining with server\n");
+	if (pthread_join(instance->module_listener_thread, NULL) != 0) {
+		fprintf(stderr, "dynplug_fini: error while joining with module_listener\n");
 	}
 }
 
@@ -205,119 +209,158 @@ void dynplug_set_sample_rate(dynplug *instance, float sample_rate) {
 }
 
 void dynplug_reset(dynplug *instance) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_reset))();
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 }
 
 void dynplug_process(dynplug *instance, const float** x, float** y, int n_samples) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_process))(x, y, n_samples);
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 	else
 		default_module_process(x, y, n_samples); // TODO: Check channels
 }
 
 void dynplug_set_parameter(dynplug *instance, int index, float value) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_set_parameter))(index, value);
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 	/* 	There should be no need to save the value for later. 
-		The only case when the lock is not acquired is when the server is 
+		The only case when the lock is not acquired is when the module_listener is 
 		loading another module.
 	*/
 }
 
 float dynplug_get_parameter(dynplug *instance, int index) {
 	float v = 0.f;
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		v = (*(instance->module_get_parameter))(index);
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 	return v;
 }
 
 void dynplug_note_on(dynplug *instance, char note, char velocity) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_note_on))(note, velocity);	
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 }
 
 void dynplug_note_off(dynplug *instance, char note) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_note_off))(note);	
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 }
 
 void dynplug_pitch_bend(dynplug *instance, int value) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_pitch_bend))(value);	
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 }
 
 void dynplug_mod_wheel(dynplug *instance, char value) {
-	if (pthread_mutex_trylock(&(instance->mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
 		(*(instance->module_mod_wheel))(value);
-		pthread_mutex_unlock(&(instance->mtx));
+		pthread_mutex_unlock(&(instance->module_mtx));
 	}
 }
 
 
-#include <unistd.h>
 
 int msleep(unsigned int tms) {
 	return usleep(tms * 1000);
 }
 
-void* dynplug_server(void* data) {
-	
-	// This is just a test
-
-	msleep(4000);
-
+void* dynplug_module_listener(void* data) {
 	dynplug *instance = (dynplug*) data;
 
-
+	char pipepath[261];
+#ifdef _WIN32
+	char tmpdir[247];
+	GetTempPath(247, tmpdir);
+#else
+	char* tmpdir =  getenv("TMPDIR");
+	if (tmpdir == NULL)
+		tmpdir = "/tmp/";
+#endif
+	snprintf(pipepath, 261, "%sdynplug_magicpipe", tmpdir);
+	
 	int r;
-	r = pthread_mutex_lock(&(instance->mtx)); // TODO: maybe trylock is better?
-
-	if (r) {
-		fprintf(stderr, "dynplug_server: error while acquiring lock\n");
-		return NULL;
-	}
-
-	// TODO: this goes in the loop
-	if (instance->server_status == 2) {
-		// TODO: terminate thread
-	}
-
-	unload_module(instance);
-	r = load_yaaaeapa_module(instance, "/tmp/dynplug/bw_example_fx_bitcrush.so");
-	if (r)
-		fprintf(stderr, "dynplug_server: error while loading module\n");
-	else {
-		dynplug_set_parameters_info(instance);
-		(*(instance->module_init))();
-		(*(instance->module_set_sample_rate))(instance->sample_rate);
-		(*(instance->module_reset))();
-		for (int i = 0; i < instance->module_parameters_n; i++) {
-			float defaultValueUnmapped;
-			instance->module_get_parameter_info(i, NULL, NULL, NULL, NULL, NULL, NULL, &defaultValueUnmapped);
-			instance->module_set_parameter(i, defaultValueUnmapped);
+	r = mkfifo(pipepath, 0666);
+	if (r != 0) {
+		if (errno == EEXIST) {
+			printf("named pipe already exists: ok\n");
+		}
+		else {
+			fprintf(stderr, "dynplug_module_listener: error creating named pipe - %d\n", errno);
+			return NULL;
 		}
 	}
 
-	r = pthread_mutex_unlock(&(instance->mtx));
-	if (r) {
-		fprintf(stderr, "dynplug_server: error while releasing lock\n");
+	int fd = open(pipepath, O_RDONLY | O_NONBLOCK);
+	if (fd == -1) {
+		fprintf(stderr, "dynplug_module_listener: error opening named pipe - %d\n", errno);
 		return NULL;
 	}
+
+	while (1) {
+		char module_path[300];
+		int bytesread;
+
+		if((bytesread = read(fd, module_path, 299)) <= 0) {
+	    	msleep(1000);
+	    	pthread_mutex_lock(&(instance->module_listener_mtx));
+	    	if (instance->module_listener_status == 2) {
+	    		instance->module_listener_status = 0;
+	    		pthread_mutex_unlock(&(instance->module_listener_mtx));
+	    		return NULL;
+	    	}
+	    	pthread_mutex_unlock(&(instance->module_listener_mtx));
+	    	continue;
+	    }
+		
+	    if (module_path[bytesread - 1] == '\n')
+	    	module_path[bytesread - 1] = '\0';
+	    else
+        	module_path[bytesread] = '\0';
+        printf("Received: %s\n", module_path);
+
+        pthread_mutex_lock(&(instance->module_mtx));
+		
+		unload_module(instance);
+		load_default_module(instance);
+		
+		strncpy(instance->module_path, module_path, 300);
+		instance->module_path[299] = '\0';
+		r = load_yaaaeapa_module(instance);
+		if (r > 0) {
+			fprintf(stderr, "dynplug_module_listener: error while loading module: %d\n", r);
+		}
+		else {
+			dynplug_set_parameters_info(instance);
+			(*(instance->module_init))();
+			(*(instance->module_set_sample_rate))(instance->sample_rate);
+			(*(instance->module_reset))();
+			for (int i = 0; i < instance->module_parameters_n; i++) {
+				float defaultValueUnmapped;
+				instance->module_get_parameter_info(i, NULL, NULL, NULL, NULL, NULL, NULL, &defaultValueUnmapped);
+				instance->module_set_parameter(i, defaultValueUnmapped);
+			}
+		}
+
+		pthread_mutex_unlock(&(instance->module_mtx));
+	}
+
+	if (close(fd) < 0) {
+        fprintf(stderr, "dynplug_module_listener: error closing named pipe - %d\n", errno);
+    }
 
 	return NULL;
 }

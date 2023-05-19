@@ -14,10 +14,12 @@ extern "C" {
 struct _dynplug {
 	void*   data; // For example, this contains VST3's Plugin instance pointer
 	void*	module_handle; // dl(m)open result
+	char    module_path[300];
+	pthread_mutex_t module_mtx; // For updating the module
 
-	pthread_t server_thread;
-	int 	server_status; // 0 = off, 1 = on, 2 = need to stop
-	pthread_mutex_t mtx;
+	pthread_t module_listener_thread;
+	int 	module_listener_status; // 0 = launched, 1 = on, 2 = need to stop
+	pthread_mutex_t     module_listener_mtx;    // For communication between main and listener threads
 
 	float sample_rate;
 
@@ -61,7 +63,7 @@ void dynplug_mod_wheel(dynplug *instance, char value);
 */
 void dynplug_set_parameters_info(dynplug *instance);
 
-void* dynplug_server(void* data);
+void* dynplug_module_listener(void* data);
 
 #ifdef __cplusplus
 }
