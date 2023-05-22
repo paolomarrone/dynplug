@@ -63,12 +63,21 @@ func handleFileInForm(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    log.Println("Writing " + fh.Filename + " to " + outFile.Name());
+
     written, err := io.Copy(outFile, f)
     if err != nil {
         log.Println("copy error", err)
         unsuccess(w)
         return
     }
+
+    p, err := os.OpenFile(pipepath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0777)
+    if err != nil {
+        log.Fatalf("Error opening pipe: %v", err)
+    }
+    p.WriteString(outFile.Name())
+    p.Close();
 
     success(w)
     log.Println("Written", written)
