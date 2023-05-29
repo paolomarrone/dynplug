@@ -21,7 +21,7 @@
 #ifndef _VST3_CONFIG_H
 #define _VST3_CONFIG_H
 
-#define PLUGIN_SUBCATEGORY	"Instrument|Synth"
+#define PLUGIN_SUBCATEGORY	"Fx" // If Fx|Instrument Reaper (and only him) mixes input and output...
 
 #define PLUGIN_GUID_1		0x5af9b172
 #define PLUGIN_GUID_2		0x95ef439c
