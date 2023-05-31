@@ -90,6 +90,10 @@ void Controller::set_parameters_info(dynplug* instance) {
 		}
 		else {
 			pi.flags = ParameterInfo::kIsHidden;
+			str16ncpy(pi.title, "Unused parameter", 16);
+			pi.title[16] = '\0';
+			str16ncpy(pi.shortTitle, "Unused", 6);
+			pi.shortTitle[6] = '\0';
 		}
 	}
 	// Not every host cares about this, but still
