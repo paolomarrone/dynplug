@@ -1,4 +1,4 @@
-CXX := g++
+# CXX := aarch64-linux-gnu-g++
 CXXFLAGS += \
 	-fPIC
 LDFLAGS += \

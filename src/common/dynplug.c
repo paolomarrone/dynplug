@@ -80,7 +80,7 @@ static void load_default_module (dynplug *instance) {
 }
 
 static int load_yaaaeapa_module (dynplug *instance) {
-	instance->module_handle = dlmopen(LM_ID_NEWLM, instance->module_path, RTLD_NOW | RTLD_LOCAL);
+	instance->module_handle = dlopen(instance->module_path, RTLD_NOW | RTLD_LOCAL);
 
     if (!instance->module_handle) {
         fprintf(stderr, "dlmopen error: %s\n", dlerror());
@@ -236,7 +236,7 @@ void dynplug_reset(dynplug *instance) {
 }
 
 void dynplug_process(dynplug *instance, const float** x, float** y, int n_samples) {
-	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) {
+	if (pthread_mutex_trylock(&(instance->module_mtx)) == 0) { // Maybe better spin lock / atomic or to not call OS... 
 		(*(instance->module_process))(x, y, n_samples);
 		pthread_mutex_unlock(&(instance->module_mtx));
 	}

@@ -347,9 +347,12 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 	_MM_SET_DENORMALS_ZERO_MODE(denormals_zero_mode);
 #endif
 
+
+	// TODO: FIX. get OUT info from vst3
+/*
 	for (int i = 0; i < instance.module_parameters_n; i++) {
 		char out;
-		instance.module_get_parameter_info(i, NULL, NULL, NULL, &out, NULL, NULL, NULL);
+		instance.module_get_parameter_info(i, NULL, NULL, NULL, &out, NULL, NULL, NULL); // TOTALLY WRONG OUTSIDE LOCK
 		if (!out)
 			continue;
 		float v = P_GET_PARAMETER(&instance, i);
@@ -363,7 +366,7 @@ tresult PLUGIN_API Plugin::process(ProcessData &data) {
 				paramQueue->addPoint(0, v, index);
 		}
 	}
-
+*/
 
 	return kResultTrue;
 }
